@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warhammer 40,000: Battle Chess 3D — Regicide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/index-DbsLgQoe.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-v5Nvznv1.css">
+</head>
+<body>
+  <!-- 3D WebGL Arena Container -->
+  <div id="arena-container"></div>
+
+  <!-- Floating World-Space UI Layer (HP Bars & Damage Numbers) -->
+  <div id="world-ui-layer"></div>
+
+  <!-- Top Tactical Command Bar -->
+  <header class="top-bar">
+    <div class="brand-block">
+      <span class="aquila-badge">⚜️</span>
+      <div>
+        <h1 class="game-title">WARHAMMER 40,000: REGICIDE 3D</h1>
+        <p class="game-subtitle">TACTICAL 3D BATTLE CHESS • IN THE GRIM DARKNESS OF THE FAR FUTURE</p>
+      </div>
+    </div>
+
+    <div class="top-controls">
+      <!-- Combat Rules Mode Switcher -->
+      <div class="control-group">
+        <label>COMBAT RULES</label>
+        <div class="mode-toggle-group">
+          <button id="btn-mode-wargame" class="mode-btn active" title="Pieces have HP, Armor, Dice Rolls & Counter-Attacks">
+            ⚔️ Wargame (HP & Dice)
+          </button>
+          <button id="btn-mode-classic" class="mode-btn" title="Standard Chess rules with 100% lethal 3D executions">
+            ♟️ Classic Chess
+          </button>
+        </div>
+      </div>
+
+      <!-- Faction Matchup Selectors -->
+      <div class="control-group">
+        <label>ORDER (SOUTH)</label>
+        <select id="select-white-faction" class="gothic-select">
+          <option value="ultramarines" selected>🦅 Ultramarines</option>
+          <option value="chaos">✴️ Black Legion Chaos</option>
+          <option value="orks">💀 Ork Waaagh!</option>
+          <option value="necrons">☥ Necron Dynasty</option>
+        </select>
+      </div>
+
+      <div class="vs-divider">VS</div>
+
+      <div class="control-group">
+        <label>CHALLENGER (NORTH)</label>
+        <select id="select-black-faction" class="gothic-select">
+          <option value="ultramarines">🦅 Ultramarines</option>
+          <option value="chaos" selected>✴️ Black Legion Chaos</option>
+          <option value="orks">💀 Ork Waaagh!</option>
+          <option value="necrons">☥ Necron Dynasty</option>
+        </select>
+      </div>
+
+      <!-- Opponent / AI Difficulty -->
+      <div class="control-group">
+        <label>OPPONENT</label>
+        <select id="select-opponent" class="gothic-select">
+          <option value="ai_easy">🤖 AI: Initiate (Easy)</option>
+          <option value="ai_medium" selected>🤖 AI: Veteran (Medium)</option>
+          <option value="ai_hard">🤖 AI: Warmaster (Hard)</option>
+          <option value="pvp">👥 2P Pass & Play</option>
+          <option value="ai_vs_ai">🍿 AI vs AI Spectate</option>
+        </select>
+      </div>
+
+      <button id="btn-new-game" class="action-btn gold-btn">🔄 New Battle</button>
+      <button id="btn-sound" class="icon-btn" title="Toggle Audio SFX">🔊</button>
+    </div>
+  </header>
+
+  <!-- Left HUD: Turn Banner, Unit Dataslate & Command Stratagems -->
+  <aside class="side-panel left-panel">
+    <!-- Active Turn Card -->
+    <div id="turn-card" class="hud-card turn-card">
+      <div class="turn-header">
+        <span id="turn-icon" class="faction-emblem">🦅</span>
+        <div>
+          <div class="turn-label" id="turn-number-label">TURN 1 • ACTIVE COMMAND</div>
+          <div class="turn-faction-name" id="turn-faction-name">Adeptus Astartes</div>
+          <div class="turn-motto" id="turn-motto">"Courage and Honour!"</div>
+        </div>
+      </div>
+      <div id="cp-bar-container" class="cp-row">
+        <span class="cp-title">COMMAND POINTS (CP):</span>
+        <span id="cp-value" class="cp-badges">⚡ 2 / 6</span>
+      </div>
+      <div id="check-warning" class="check-banner hidden">⚠️ WARLORD UNDER THREAT!</div>
+    </div>
+
+    <!-- Stratagems Panel (Wargame Mode) -->
+    <div id="stratagems-card" class="hud-card stratagems-card">
+      <div class="card-header">
+        <span>⚡ TACTICAL STRATAGEMS</span>
+        <span class="card-tag" id="stratagem-status-tag">READY</span>
+      </div>
+      <div class="stratagem-list">
+        <button id="btn-strat-overcharge" class="strat-btn">
+          <div class="strat-top">
+            <span class="strat-name" id="strat-overcharge-name">Fury of the First</span>
+            <span class="strat-cost">1 CP</span>
+          </div>
+          <div class="strat-desc">+5 Attack DMG & +2 Armor Pierce on next combat</div>
+        </button>
+
+        <button id="btn-strat-heal" class="strat-btn">
+          <div class="strat-top">
+            <span class="strat-name" id="strat-heal-name">Apothecary Narthecium</span>
+            <span class="strat-cost">2 CP</span>
+          </div>
+          <div class="strat-desc">Select a damaged friendly unit to heal +10 HP</div>
+        </button>
+
+        <button id="btn-strat-orbital" class="strat-btn">
+          <div class="strat-top">
+            <span class="strat-name" id="strat-orbital-name">Orbital Strike Lance</span>
+            <span class="strat-cost">3 CP</span>
+          </div>
+          <div class="strat-desc">Target an enemy non-King unit for 9 orbital DMG</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Unit Dataslate Inspector -->
+    <div id="unit-dataslate" class="hud-card dataslate-card">
+      <div class="card-header">
+        <span>📟 COGITATOR DATASLATE</span>
+        <span id="unit-role-badge" class="card-tag">SELECT A UNIT</span>
+      </div>
+      <div id="unit-inspector-content" class="dataslate-body">
+        <p class="empty-hint">Click or hover over any 3D miniature on the battlefield to inspect its weapons, wounds, armor save, and combat profile.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right HUD: Camera Controls & Vox Combat Log -->
+  <aside class="side-panel right-panel">
+    <div class="hud-card camera-card">
+      <div class="card-header">
+        <span>🎥 BATTLEFIELD CAMERA</span>
+      </div>
+      <div class="cam-grid">
+        <button class="cam-btn" data-cam="white">South View</button>
+        <button class="cam-btn" data-cam="black">North View</button>
+        <button class="cam-btn" data-cam="top">Top Tactical</button>
+        <button class="cam-btn" data-cam="cinematic">Isometric</button>
+      </div>
+      <button id="btn-toggle-duelcam" class="cam-toggle-btn active">
+        🎬 Auto Action Duel Cam: ON
+      </button>
+      <div class="cam-help">Left-drag: Orbit • Right-drag: Pan • Scroll: Zoom</div>
+    </div>
+
+    <div class="hud-card log-card">
+      <div class="card-header">
+        <span>📡 VOX-CASTER COMBAT LOG</span>
+      </div>
+      <div id="combat-log" class="combat-log"></div>
+    </div>
+  </aside>
+
+  <!-- Dynamic Center-Top 3D Duel Overlay (Shown during fights) -->
+  <div id="duel-overlay" class="duel-overlay hidden">
+    <div class="duel-banner">
+      <!-- Attacker Box -->
+      <div class="duel-fighter attacker-box">
+        <div class="fighter-tag">⚔️ ATTACKER</div>
+        <div class="fighter-name" id="duel-atk-name">Primaris Intercessor</div>
+        <div class="fighter-weapon" id="duel-atk-weapon">Bolt Rifle & Chainsword</div>
+        <div class="duel-hp-track">
+          <div id="duel-atk-hp-bar" class="duel-hp-fill atk-fill" style="width: 100%"></div>
+        </div>
+        <div class="fighter-stats-row">
+          <span id="duel-atk-hp-text">14 / 14 HP</span>
+          <span id="duel-atk-dice" class="dice-strip">🎲 5 + 4</span>
+        </div>
+      </div>
+
+      <!-- Center Clash Status -->
+      <div class="duel-center">
+        <div class="duel-vs">CLASH</div>
+        <div id="duel-phase-text" class="duel-phase-text">Charging into Melee...</div>
+        <button id="btn-skip-anim" class="skip-btn">Skip ⏭️</button>
+      </div>
+
+      <!-- Defender Box -->
+      <div class="duel-fighter defender-box">
+        <div class="fighter-tag">🛡️ DEFENDER</div>
+        <div class="fighter-name" id="duel-def-name">Chaos Legionary</div>
+        <div class="fighter-weapon" id="duel-def-weapon">Corrupted Bolter & Chainaxe</div>
+        <div class="duel-hp-track">
+          <div id="duel-def-hp-bar" class="duel-hp-fill def-fill" style="width: 100%"></div>
+        </div>
+        <div class="fighter-stats-row">
+          <span id="duel-def-hp-text">14 / 14 HP</span>
+          <span id="duel-def-armor" class="armor-badge">🛡️ Armor 2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pawn Promotion Modal -->
+  <div id="promotion-modal" class="modal-backdrop hidden">
+    <div class="modal-panel">
+      <h2 class="modal-title">⚜️ BATTLEFIELD ASCENSION ⚜️</h2>
+      <p class="modal-desc">Your warrior has breached the enemy lines! Choose their promotion rank:</p>
+      <div id="promotion-choices" class="promo-grid">
+        <button class="promo-btn" data-type="q">👑 Champion (Queen)</button>
+        <button class="promo-btn" data-type="r">🤖 Heavy Walker (Rook)</button>
+        <button class="promo-btn" data-type="b">⚡ Psyker (Bishop)</button>
+        <button class="promo-btn" data-type="n">🚀 Jump Assault (Knight)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Victory / Regicide Modal -->
+  <div id="victory-modal" class="modal-backdrop hidden">
+    <div class="modal-panel victory-panel">
+      <div id="victory-icon" class="victory-emblem">🦅</div>
+      <h2 id="victory-title" class="modal-title">IMPERIAL VICTORY!</h2>
+      <p id="victory-reason" class="modal-desc">Enemy Warlord Slain in Glorious Melee Combat</p>
+      <button id="btn-play-again" class="action-btn gold-btn large-btn">⚔️ Wage Another War</button>
+    </div>
+  </div>
+
+</body>
+</html>
