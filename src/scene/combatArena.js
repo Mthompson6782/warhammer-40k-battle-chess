@@ -136,18 +136,38 @@ export class CombatArena {
     trim.receiveShadow = true;
     this.boardGroup.add(trim);
 
-    // 8x8 Sector Imperialis Tiles
-    const tileGeo = new THREE.BoxGeometry(0.96, 0.1, 0.96);
+    // 8x8 High-Contrast Chessboard Tiles + Glowing Hololith Light Grid
+    const tileGeo = new THREE.BoxGeometry(0.94, 0.1, 0.94);
     const lightTileMat = new THREE.MeshStandardMaterial({
-      color: 0x4d5462,
-      roughness: 0.52,
-      metalness: 0.38
+      color: 0xd8e2f0,
+      emissive: 0x1a3048,
+      emissiveIntensity: 0.45,
+      roughness: 0.34,
+      metalness: 0.25
     });
     const darkTileMat = new THREE.MeshStandardMaterial({
-      color: 0x1c2029,
-      roughness: 0.62,
-      metalness: 0.48
+      color: 0x11151e,
+      emissive: 0x060a12,
+      emissiveIntensity: 0.2,
+      roughness: 0.58,
+      metalness: 0.52
     });
+
+    const lightInnerRimMat = new THREE.MeshBasicMaterial({
+      color: 0x7ce8ff,
+      transparent: true,
+      opacity: 0.42,
+      side: THREE.DoubleSide
+    });
+    const darkInnerRimMat = new THREE.MeshBasicMaterial({
+      color: 0xc89d45,
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide
+    });
+    const innerRimGeo = new THREE.RingGeometry(0.41, 0.445, 4);
+    innerRimGeo.rotateX(-Math.PI / 2);
+    innerRimGeo.rotateY(Math.PI / 4);
 
     this.tileMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
 
@@ -158,10 +178,69 @@ export class CombatArena {
         const pos = this.boardToWorld(r, c);
         tile.position.set(pos.x, -0.05, pos.z);
         tile.receiveShadow = true;
-        tile.userData = { isTile: true, r, c };
+        tile.userData = { isTile: true, r, c, isLight };
         this.boardGroup.add(tile);
         this.tileMeshes[r][c] = tile;
+
+        // Glowing inner square frame on each chessboard tile
+        const frame = new THREE.Mesh(innerRimGeo, isLight ? lightInnerRimMat : darkInnerRimMat);
+        frame.position.set(pos.x, 0.002, pos.z);
+        this.boardGroup.add(frame);
       }
+    }
+
+    // Glowing Laser Light-Grid Channels (9 Horizontal + 9 Vertical lines + Corner Nodes)
+    this.gridPulseMaterials = [];
+    const gridLineMat = new THREE.MeshBasicMaterial({
+      color: 0x00e5ff,
+      transparent: true,
+      opacity: 0.78
+    });
+    const outerGridMat = new THREE.MeshBasicMaterial({
+      color: 0xf2cb6c,
+      transparent: true,
+      opacity: 0.92
+    });
+    this.gridPulseMaterials.push(gridLineMat, outerGridMat);
+
+    for (let i = 0; i <= 8; i++) {
+      const offset = i - 4.0;
+      const isBorder = i === 0 || i === 8;
+      const mat = isBorder ? outerGridMat : gridLineMat;
+      const thickness = isBorder ? 0.045 : 0.026;
+
+      // Horizontal rank line (along X)
+      const hLine = new THREE.Mesh(new THREE.BoxGeometry(8.04, 0.012, thickness), mat);
+      hLine.position.set(0, 0.004, offset);
+      this.boardGroup.add(hLine);
+
+      // Vertical file line (along Z)
+      const vLine = new THREE.Mesh(new THREE.BoxGeometry(thickness, 0.012, 8.04), mat);
+      vLine.position.set(offset, 0.004, 0);
+      this.boardGroup.add(vLine);
+    }
+
+    // Glowing Grid Intersection Nodes at all 9x9 corners
+    const nodeGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.016, 8);
+    for (let r = 0; r <= 8; r++) {
+      for (let c = 0; c <= 8; c++) {
+        const node = new THREE.Mesh(nodeGeo, outerGridMat);
+        node.position.set(c - 4.0, 0.006, r - 4.0);
+        this.boardGroup.add(node);
+      }
+    }
+
+    // Illuminated A-H and 1-8 Chessboard Coordinate Labels along the frame
+    const files = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+    for (let i = 0; i < 8; i++) {
+      const coordOffset = i - 3.5;
+      // South & North File Labels (A-H)
+      this.boardGroup.add(this.createCoordLabel(files[i], coordOffset, 4.16, 0));
+      this.boardGroup.add(this.createCoordLabel(files[i], coordOffset, -4.16, Math.PI));
+      // West & East Rank Labels (1-8)
+      this.boardGroup.add(this.createCoordLabel(ranks[i], -4.16, coordOffset, Math.PI / 2));
+      this.boardGroup.add(this.createCoordLabel(ranks[i], 4.16, coordOffset, -Math.PI / 2));
     }
 
     // 4 Corner Gothic Braziers
@@ -199,6 +278,35 @@ export class CombatArena {
 
     this.scarGroup = new THREE.Group();
     this.scene.add(this.scarGroup);
+  }
+
+  createCoordLabel(text, x, z, rotY = 0) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.font = 'bold 42px Cinzel, Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#f2cb6c';
+    ctx.fillText(text, 32, 34);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), mat);
+    plane.rotation.x = -Math.PI / 2;
+    plane.rotation.z = rotY;
+    plane.position.set(x, 0.025, z);
+    return plane;
   }
 
   clearBattleScars() {
@@ -1428,7 +1536,10 @@ export class CombatArena {
       this.controls.target.lerp(this.duelOrbitTarget, 0.18);
     }
 
-    // 3. Flickering Corner Braziers
+    // 3. Flickering Corner Braziers & Hololith Light-Grid Pulse
+    if (this.gridPulseMaterials && this.gridPulseMaterials.length > 0) {
+      this.gridPulseMaterials[0].opacity = 0.68 + Math.sin(now * 2.4) * 0.16;
+    }
     this.braziers.forEach((b) => {
       const flicker = 0.88 + Math.sin(now * 11 + b.phase) * 0.15 + Math.cos(now * 19) * 0.08;
       b.fireCone.scale.set(1, flicker, 1);
