@@ -160,6 +160,7 @@ class WarhammerBattleChessApp {
     this.inspectedPiece = null;
 
     this.engine.reset();
+    this.arena.clearBattleScars();
     this.arena.syncBoardPieces(this.engine);
     this.arena.setHighlights(null, [], [], null);
 
